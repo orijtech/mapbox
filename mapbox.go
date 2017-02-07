@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"sync"
 )
 
@@ -24,11 +25,16 @@ func (c *Client) SetAPIKey(key string) {
 	c.apiKey = key
 }
 
+var defaultEnvAPIKey = os.Getenv("MAPBOX_API_KEY")
+
 func (c *Client) APIKey() string {
 	c.RLock()
 	defer c.RUnlock()
 
-	return c.apiKey
+	if c.apiKey != "" {
+		return c.apiKey
+	}
+	return defaultEnvAPIKey
 }
 
 type LatLonPair []float32
@@ -97,9 +103,11 @@ func (c *Client) APIVersion() string {
 	}
 }
 
+var baseURL = "https://api.mapbox.com"
+
 func (c *Client) durationsURL() string {
-	return fmt.Sprintf("https://api.mapbox.com/distances/%s/mapbox/driving?access_token=%s",
-		c.APIVersion(), c.APIKey())
+	return fmt.Sprintf("%s/distances/%s/mapbox/driving?access_token=%s",
+		baseURL, c.APIVersion(), c.APIKey())
 }
 
 func (c *Client) _httpClient() *http.Client {
