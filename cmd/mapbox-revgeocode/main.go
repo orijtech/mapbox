@@ -19,11 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	revReq := &mapbox.ReverseGeocodeRequest{
-		Query: fmt.Sprintf("%f,%f", lon, lat),
-	}
-
-	resp, err := client.ReverseGeocoding(revReq)
+	resp, err := client.LookupLatLon(lat, lon)
 	if err != nil {
 		log.Fatal(err)
 	}

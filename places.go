@@ -21,6 +21,14 @@ func (gm GeocodeMode) String() string {
 	return string(gm)
 }
 
+// LookupLatLon is a helper to reverse geocoding
+// lookup a latitude and longitude pair.
+func (c *Client) LookupLatLon(lat, lon float64) (*GeocodeResponse, error) {
+	return c.ReverseGeocoding(&ReverseGeocodeRequest{
+		Query: fmt.Sprintf("%f,%f", lon, lat),
+	})
+}
+
 // ReverseGeocoding Converts coordinates to place names
 // -77.036,38.897 -> 1600 Pennsylvania Ave NW.
 // Request format:
