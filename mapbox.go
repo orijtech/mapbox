@@ -133,7 +133,10 @@ func (c *Client) RequestDuration(dreq *DurationRequest) (*DurationResponse, erro
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	if res.Body != nil {
+		defer res.Body.Close()
+	}
+
 	if !statusOK(res.StatusCode) {
 		return nil, fmt.Errorf("%s", res.Status)
 	}

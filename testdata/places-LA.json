@@ -1,0 +1,94 @@
+{
+  "type": "FeatureCollection",
+  "query": [
+    "los",
+    "angeles"
+  ],
+  "features": [
+    {
+      "id": "place.33004",
+      "type": "Feature",
+      "text": "Los Angeles",
+      "place_name": "Los Angeles, California, United States",
+      "relevance": 0.99,
+      "properties": {
+        "wikidata": "Q65"
+      },
+      "bbox": [
+        -118.521455009776,
+        33.90189299,
+        -118.12130699003,
+        34.1614390095055
+      ],
+      "center": [
+        -118.2439,
+        34.0544
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.2439,
+          34.0544
+        ]
+      },
+      "context": [
+        {
+          "id": "postcode.8055854450707500",
+          "text": "90012"
+        },
+        {
+          "id": "region.6020809690311220",
+          "text": "California",
+          "short_code": "US-CA",
+          "wikidata": "Q99"
+        },
+        {
+          "id": "country.12862386939497690",
+          "text": "United States",
+          "short_code": "us",
+          "wikidata": "Q30"
+        }
+      ]
+    },
+    {
+      "id": "place.15100",
+      "type": "Feature",
+      "text": "Los Ángeles",
+      "place_name": "Los Ángeles, Bío Bío, Chile",
+      "relevance": 0.99,
+      "properties": {},
+      "bbox": [
+        -72.6835636,
+        -37.6587686,
+        -72.0420575,
+        -37.1736364
+      ],
+      "center": [
+        -72.3277,
+        -37.4079
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -72.3277,
+          -37.4079
+        ]
+      },
+      "context": [
+        {
+          "id": "region.7807420235045040",
+          "text": "Bío Bío",
+          "short_code": "CL-BI",
+          "wikidata": "Q2170"
+        },
+        {
+          "id": "country.14661701841731110",
+          "text": "Chile",
+          "short_code": "cl",
+          "wikidata": "Q298"
+        }
+      ]
+    }
+  ],
+  "attribution": "NOTICE: © 2016 Mapbox and its suppliers. All rights reserved. Use of this data is subject to the Mapbox Terms of Service (https://www.mapbox.com/about/maps/). This response and the information it contains may not be retained."
+}

@@ -1,12 +1,16 @@
 package mapbox_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/odeke-em/mapbox"
@@ -74,13 +78,75 @@ var durationsMap = map[string]map[string]float32{
 	},
 }
 
-type durationsBackend struct {
+type tBackend struct {
+	route   string
 	mapping map[string]map[string]float32
 }
 
-var _ http.RoundTripper = (*durationsBackend)(nil)
+var _ http.RoundTripper = (*tBackend)(nil)
 
-func (backend *durationsBackend) RoundTrip(req *http.Request) (*http.Response, error) {
+type roundTrip func(*http.Request) (*http.Response, error)
+type produceRT func(*tBackend) roundTrip
+
+var routeMatchesToRoundTripper = map[string]produceRT{
+	"/distances": func(b *tBackend) roundTrip { return b.durationRoundTrip },
+	"/geocoding": func(b *tBackend) roundTrip { return b.geocodeRoundTrip },
+}
+
+func (backend *tBackend) RoundTrip(req *http.Request) (*http.Response, error) {
+	path := req.URL.Path
+
+	var rtFn func(*http.Request) (*http.Response, error)
+	for segment, fn := range routeMatchesToRoundTripper {
+		if strings.Contains(path, segment) {
+			rtFn = fn(backend)
+			break
+		}
+	}
+
+	if rtFn == nil {
+		return makeResp("Not Found", http.StatusNotFound, http.NoBody), nil
+	}
+
+	return rtFn(req)
+}
+
+var knownPlacesToCodes = map[string]string{
+	"Los Angeles": "LA",
+}
+
+func (backend *tBackend) geocodeRoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Method != "GET" {
+		msg := fmt.Sprintf("only %q allowed not %q", "GET", req.Method)
+		return makeResp(msg, http.StatusMethodNotAllowed, http.NoBody), nil
+	}
+
+	splits := strings.Split(req.URL.Path, "/")
+	if len(splits) < 2 {
+		return makeResp("/{{place}} in the URL path", http.StatusBadRequest, http.NoBody), nil
+	}
+
+	placeInfo := splits[len(splits)-1]
+	place := strings.TrimSuffix(placeInfo, ".json")
+	shortID := knownPlacesToCodes[place]
+	if shortID == "" {
+		msg := fmt.Sprintf("%q not found", shortID)
+		return makeResp(msg, http.StatusNotFound, http.NoBody), nil
+	}
+
+	fullPath := geocodeResponsePath(shortID)
+	return respFromFileContents(fullPath)
+}
+
+func respFromFileContents(path string) (*http.Response, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return makeResp(err.Error(), http.StatusInternalServerError, http.NoBody), nil
+	}
+	return makeResp("200 OK", http.StatusOK, f), nil
+}
+
+func (backend *tBackend) durationRoundTrip(req *http.Request) (*http.Response, error) {
 	slurp, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
@@ -150,7 +216,7 @@ func (backend *durationsBackend) RoundTrip(req *http.Request) (*http.Response, e
 }
 
 func TestRoundtripDurationResponse(t *testing.T) {
-	backend := &durationsBackend{
+	backend := &tBackend{
 		mapping: durationsMap,
 	}
 
@@ -205,4 +271,82 @@ func TestRoundtripDurationResponse(t *testing.T) {
 		}
 	}
 
+}
+
+func geocodeResponsePath(shortID string) string {
+	return fmt.Sprintf("./testdata/places-%s.json", shortID)
+}
+
+func geocodeResponseFromFile(shortID string) *mapbox.GeocodeResponse {
+	fullPath := geocodeResponsePath(shortID)
+	blob, err := ioutil.ReadFile(fullPath)
+	if err != nil {
+		return nil
+	}
+
+	gr := new(mapbox.GeocodeResponse)
+	if err := json.Unmarshal(blob, gr); err != nil {
+		return nil
+	}
+	return gr
+}
+
+func TestLookupPlace(t *testing.T) {
+	backend := &tBackend{
+		mapping: durationsMap,
+	}
+
+	client, err := mapbox.NewClient(
+		mapbox.WithHTTPClient(&http.Client{Transport: backend}),
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		query   string
+		wantErr bool
+		want    *mapbox.GeocodeResponse
+	}{
+		0: {
+			query: "Los Angeles",
+			want:  geocodeResponseFromFile("LA"),
+		},
+	}
+
+	for i, tt := range tests {
+		gr, err := client.LookupPlace(tt.query)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("#%d: want non-nil err", i)
+			}
+			continue
+		}
+
+		if err != nil {
+			t.Errorf("#%d err: %v", i, err)
+			continue
+		}
+
+		gotBlob := jsonMarshal(gr)
+		wantBlob := jsonMarshal(tt.want)
+		if !bytes.Equal(gotBlob, wantBlob) {
+			t.Errorf("#%d\ngot:  %s\nwant: %s", i, gotBlob, wantBlob)
+		}
+	}
+}
+
+func jsonMarshal(v interface{}) []byte {
+	blob, _ := json.Marshal(v)
+	return blob
+}
+
+func makeResp(status string, code int, body io.ReadCloser) *http.Response {
+	return &http.Response{
+		Status:     status,
+		StatusCode: code,
+		Header:     make(http.Header),
+		Body:       body,
+	}
 }

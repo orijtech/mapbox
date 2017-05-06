@@ -21,6 +21,14 @@ func (gm GeocodeMode) String() string {
 	return string(gm)
 }
 
+// LookupPlace looks up the coordinates and information of a place
+// for example "Los Angeles" or "Edmonton".
+func (c *Client) LookupPlace(query string) (*GeocodeResponse, error) {
+	return c.doGeoCodingRequest(&ReverseGeocodeRequest{
+		Query: query,
+	})
+}
+
 // LookupLatLon is a helper to reverse geocoding
 // lookup a latitude and longitude pair.
 func (c *Client) LookupLatLon(lat, lon float64) (*GeocodeResponse, error) {
@@ -31,9 +39,13 @@ func (c *Client) LookupLatLon(lat, lon float64) (*GeocodeResponse, error) {
 
 // ReverseGeocoding Converts coordinates to place names
 // -77.036,38.897 -> 1600 Pennsylvania Ave NW.
+func (c *Client) ReverseGeocoding(req *ReverseGeocodeRequest) (*GeocodeResponse, error) {
+	return c.doGeoCodingRequest(req)
+}
+
 // Request format:
 // GET /geocoding/v5/{mode}/{query}.json
-func (c *Client) ReverseGeocoding(req *ReverseGeocodeRequest) (*GeocodeResponse, error) {
+func (c *Client) doGeoCodingRequest(req *ReverseGeocodeRequest) (*GeocodeResponse, error) {
 	asURLValues, err := toURLValues(req.Request)
 	if err != nil {
 		return nil, err
