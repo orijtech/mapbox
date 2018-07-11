@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/odeke-em/mapbox"
+	"github.com/orijtech/mapbox"
 )
 
 func main() {

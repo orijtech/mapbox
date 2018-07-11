@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/odeke-em/mapbox"
+	"github.com/orijtech/mapbox"
 )
 
 func TestLatLonPairJSONUnmarshal(t *testing.T) {
