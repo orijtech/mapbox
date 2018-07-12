@@ -2,6 +2,7 @@ package mapbox
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"sync"
+
+	"go.opencensus.io/plugin/ochttp"
 )
 
 type Client struct {
@@ -117,18 +120,19 @@ func (c *Client) _httpClient() *http.Client {
 	if c.httpClient != nil {
 		return c.httpClient
 	}
-	return http.DefaultClient
+	return &http.Client{Transport: &ochttp.Transport{}}
 }
 
 func statusOK(c int) bool { return c >= 200 && c <= 299 }
 
-func (c *Client) RequestDuration(dreq *DurationRequest) (*DurationResponse, error) {
+func (c *Client) RequestDuration(ctx context.Context, dreq *DurationRequest) (*DurationResponse, error) {
 	blob, err := json.Marshal(dreq)
 	if err != nil {
 		return nil, err
 	}
 	req, _ := http.NewRequest("POST", c.durationsURL(), bytes.NewReader(blob))
 	httpClient := c._httpClient()
+	req = req.WithContext(ctx)
 	res, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err

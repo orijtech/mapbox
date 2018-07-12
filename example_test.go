@@ -1,6 +1,7 @@
 package mapbox_test
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -14,7 +15,7 @@ func Example_client_LookupPlace() {
 	}
 
 	// Time for some tacos, let's lookup that new spot.
-	match, err := client.LookupPlace("Tacquerias El Farolito")
+	match, err := client.LookupPlace(context.Background(), "Tacquerias El Farolito")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -34,7 +35,7 @@ func Example_client_LookupLatLon() {
 		log.Fatal(err)
 	}
 
-	resp, err := client.LookupLatLon(38.8971, -77.0366)
+	resp, err := client.LookupLatLon(context.Background(), 38.8971, -77.0366)
 	if err != nil {
 		log.Fatal(err)
 	}

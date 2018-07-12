@@ -1,10 +1,14 @@
 package mapbox
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
+
+	"go.opencensus.io/trace"
 )
 
 type GeocodeMode string
@@ -23,31 +27,42 @@ func (gm GeocodeMode) String() string {
 
 // LookupPlace looks up the coordinates and information of a place
 // for example "Los Angeles" or "Edmonton".
-func (c *Client) LookupPlace(query string) (*GeocodeResponse, error) {
-	return c.doGeoCodingRequest(&ReverseGeocodeRequest{
+func (c *Client) LookupPlace(ctx context.Context, query string) (*GeocodeResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "mapbox.(*Client).LookupPlace")
+	defer span.End()
+
+	return c.doGeoCodingRequest(ctx, span, &ReverseGeocodeRequest{
 		Query: query,
 	})
 }
 
 // LookupLatLon is a helper to reverse geocoding
 // lookup a latitude and longitude pair.
-func (c *Client) LookupLatLon(lat, lon float64) (*GeocodeResponse, error) {
-	return c.ReverseGeocoding(&ReverseGeocodeRequest{
+func (c *Client) LookupLatLon(ctx context.Context, lat, lon float64) (*GeocodeResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "mapbox.(*Client).LookupLatLon")
+	defer span.End()
+
+	return c.ReverseGeocoding(ctx, &ReverseGeocodeRequest{
 		Query: fmt.Sprintf("%f,%f", lon, lat),
 	})
 }
 
 // ReverseGeocoding Converts coordinates to place names
 // -77.036,38.897 -> 1600 Pennsylvania Ave NW.
-func (c *Client) ReverseGeocoding(req *ReverseGeocodeRequest) (*GeocodeResponse, error) {
-	return c.doGeoCodingRequest(req)
+func (c *Client) ReverseGeocoding(ctx context.Context, req *ReverseGeocodeRequest) (*GeocodeResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "mapbox.(*Client).ReverseGeocoding")
+	defer span.End()
+
+	return c.doGeoCodingRequest(ctx, span, req)
 }
 
 // Request format:
 // GET /geocoding/v5/{mode}/{query}.json
-func (c *Client) doGeoCodingRequest(req *ReverseGeocodeRequest) (*GeocodeResponse, error) {
+func (c *Client) doGeoCodingRequest(ctx context.Context, span *trace.Span, req *ReverseGeocodeRequest) (*GeocodeResponse, error) {
 	asURLValues, err := toURLValues(req.Request)
 	if err != nil {
+		span.Annotate(nil, "Failed to convert request to url.Values")
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
 		return nil, err
 	}
 
@@ -56,25 +71,40 @@ func (c *Client) doGeoCodingRequest(req *ReverseGeocodeRequest) (*GeocodeRespons
 	// GET /geocoding/v5/{mode}/{query}.json
 	outURL := fmt.Sprintf("%s/geocoding/v5/%s/%s.json?%s",
 		baseURL, req.Mode, req.Query, asURLValues.Encode())
+	hreq, err := http.NewRequest("GET", outURL, nil)
+	if err != nil {
+		span.Annotate(nil, "Failed to create http request")
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
+		return nil, err
+	}
+	hreq = hreq.WithContext(ctx)
 
 	httpClient := c._httpClient()
-	res, err := httpClient.Get(outURL)
+	res, err := httpClient.Do(hreq)
 	if err != nil {
+		span.Annotate(nil, "Failed to make http request")
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
 		return nil, err
 	}
 
 	defer res.Body.Close()
 	if !statusOK(res.StatusCode) {
+		span.Annotate(nil, "Bad response")
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: res.Status})
 		return nil, fmt.Errorf("%s", res.Status)
 	}
 
 	blob, err := ioutil.ReadAll(res.Body)
 	if err != nil {
+		span.Annotate(nil, "Failed to read body")
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
 		return nil, err
 	}
 
 	gres := new(GeocodeResponse)
 	if err := json.Unmarshal(blob, gres); err != nil {
+		span.Annotate(nil, "Failed to unmarshal JSON response")
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
 		return nil, err
 	}
 	return gres, nil
@@ -114,7 +144,7 @@ func toURLValues(v interface{}) (url.Values, error) {
 			}
 		case *LatLonPair:
 			for _, fV := range *typ {
-				outValues.Add(key, fmt.Sprintf("%sf", fV))
+				outValues.Add(key, fmt.Sprintf("%f", fV))
 			}
 			outValues.Add(key, fmt.Sprintf("%v", typ))
 		default:

@@ -2,6 +2,7 @@ package mapbox_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -258,7 +259,7 @@ func TestRoundtripDurationResponse(t *testing.T) {
 			continue
 		}
 
-		recv, err := client.RequestDuration(req)
+		recv, err := client.RequestDuration(context.Background(), req)
 		if err != nil {
 			t.Errorf("#%d unmarshalErr: %v", i, err)
 			continue
@@ -316,7 +317,7 @@ func TestLookupPlace(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		gr, err := client.LookupPlace(tt.query)
+		gr, err := client.LookupPlace(context.Background(), tt.query)
 		if tt.wantErr {
 			if err == nil {
 				t.Errorf("#%d: want non-nil err", i)
